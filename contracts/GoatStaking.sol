@@ -6,7 +6,8 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/security/Pausable.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
-import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
+// import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
+import "@openzeppelin/contracts/token/ERC721/extensions/IERC721Enumerable.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
 import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
@@ -240,6 +241,21 @@ contract GoatStaking is ReentrancyGuard, Pausable, Ownable, IERC721Receiver {
         distributor = new DividendDistributor();
     }
 
+    function userWalletNFT(address _owner) external view returns(uint256[] memory ) {
+        uint256 tokenCount =  IERC721Enumerable(stakeNft).balanceOf(_owner);
+        if (tokenCount == 0) {
+            // Return an empty array
+            return new uint256[](0);
+        } else {
+            uint256[] memory result = new uint256[](tokenCount);
+            uint256 index;
+            for (index = 0; index < tokenCount; index++) {
+                result[index] = IERC721Enumerable(stakeNft).tokenOfOwnerByIndex(_owner, index);
+            }
+            return result;
+        }
+    }
+
     function userStakedNFT(address _owner)
         public
         view
@@ -290,11 +306,11 @@ contract GoatStaking is ReentrancyGuard, Pausable, Ownable, IERC721Receiver {
 
     function stake(uint256 tokenId) public nonReentrant whenNotPaused {
         require(
-            IERC721(stakeNft).isApprovedForAll(_msgSender(), address(this)),
+            IERC721Enumerable(stakeNft).isApprovedForAll(_msgSender(), address(this)),
             "Not approve nft to staker address"
         );
 
-        IERC721(stakeNft).safeTransferFrom(
+        IERC721Enumerable(stakeNft).safeTransferFrom(
             _msgSender(),
             address(this),
             tokenId
@@ -315,7 +331,7 @@ contract GoatStaking is ReentrancyGuard, Pausable, Ownable, IERC721Receiver {
         whenNotPaused
     {
         require(
-            IERC721(stakeNft).isApprovedForAll(_msgSender(), address(this)),
+            IERC721Enumerable(stakeNft).isApprovedForAll(_msgSender(), address(this)),
             "Not approve nft to staker address"
         );
 
@@ -323,7 +339,7 @@ contract GoatStaking is ReentrancyGuard, Pausable, Ownable, IERC721Receiver {
 
         for (uint256 i = 0; i < _tokenIds.length; i++) {
             uint256 tokenId = _tokenIds[i];
-            IERC721(stakeNft).safeTransferFrom(
+            IERC721Enumerable(stakeNft).safeTransferFrom(
                 _msgSender(),
                 address(this),
                 tokenId
@@ -343,7 +359,7 @@ contract GoatStaking is ReentrancyGuard, Pausable, Ownable, IERC721Receiver {
 
         require(isStaked(_msgSender(), tokenId), "Not staked this nft");
 
-        IERC721(stakeNft).safeTransferFrom(
+        IERC721Enumerable(stakeNft).safeTransferFrom(
             address(this),
             _msgSender(),
             tokenId
@@ -364,7 +380,7 @@ contract GoatStaking is ReentrancyGuard, Pausable, Ownable, IERC721Receiver {
 
             require(isStaked(_msgSender(), tokenId), "Not staked this nft");
 
-            IERC721(stakeNft).safeTransferFrom(
+            IERC721Enumerable(stakeNft).safeTransferFrom(
                 address(this),
                 _msgSender(),
                 tokenId

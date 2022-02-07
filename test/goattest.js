@@ -67,7 +67,9 @@ async function main () {
 
   console.log("goatstaker Contract deployed to ", goatstaker.address)
 
-  console.log("goatstaker distributer  deployed to ", (await goatstaker.distributor()))
+  const distributor = await goatstaker.distributor()
+
+  console.log("goatstaker distributer  deployed to ", distributor)
 
   let tx
 
@@ -79,9 +81,9 @@ async function main () {
 
   console.log('deployer nft balance count of the deployer:',(await crogoats.balanceOf(deployer.address)))
 
-  const mintedNfts = await crogoats.tokensOfOwner(deployer.address);
+  const mintedNfts = await goatstaker.userWalletNFT(deployer.address);
 
-  console.log('deployer nfts:',mintedNfts)
+  // console.log('deployer nfts:',mintedNfts)
 
   tx = await goatstaker.batchStake([mintedNfts[1],mintedNfts[4],mintedNfts[2]])
   await tx.wait()
@@ -97,15 +99,31 @@ async function main () {
 
   console.log('deployer:',deployer.address, formatEther(await deployer.getBalance()));
 
-  tx = await goatstaker.depositReward( {value:parseEther('0.2')})
+  console.log('staker :',goatstaker.address, formatEther(await goatstaker.provider.getBalance(goatstaker.address)));
+
+  console.log('distributor :',distributor, formatEther(await goatstaker.provider.getBalance(distributor)));
+
+
+  tx = await goatstaker.depositReward( {value:parseEther('0.1')})
   await tx.wait()
 
   console.log('deployer:',deployer.address, formatEther(await deployer.getBalance()));
 
+  console.log('staker :',goatstaker.address, formatEther(await goatstaker.provider.getBalance(goatstaker.address)));
+
+  console.log('distributor :',distributor, formatEther(await goatstaker.provider.getBalance(distributor)));
+
+
+  // console.log('call distributeReward:')
+  // tx = await goatstaker.distributeReward()
+  // await tx.wait()
+
+  console.log('after distribute deployer:',deployer.address, formatEther(await deployer.getBalance()));
+
   
   console.log('nft start withdraw ----- :')
 
-  tx = await goatstaker.withdraw(mintedNfts[4])
+  tx = await goatstaker.unstake(mintedNfts[4])
   await tx.wait()
 
   console.log('check withdraw: isStaked:',(await goatstaker.isStaked(deployer.address,mintedNfts[4])))
@@ -115,18 +133,66 @@ async function main () {
 
   console.log('other user stake goat nfts*************************************')
 
-  const ownermintedNfts = await crogoats.tokensOfOwner(owner.address);
+  const ownermintedNfts = await goatstaker.userWalletNFT(owner.address);
 
-  tx = await goatstaker.connect(owner).batchStake([ownermintedNfts[1],ownermintedNfts[4],ownermintedNfts[2]])
+  tx = await crogoats.connect(owner).setApprovalForAll(goatstaker.address,true)
+  await tx.wait()
+
+
+  tx = await goatstaker.connect(owner).batchStake([ownermintedNfts[1],ownermintedNfts[4],ownermintedNfts[2],ownermintedNfts[6]])
+  await tx.wait()
+
+
+  console.log('owner staked nft counnt:',(await goatstaker.userStakedNFTCount(owner.address)))
+
+  await sleep(10)
+
+
+  console.log('deployer:',deployer.address, formatEther(await deployer.getBalance()));
+
+  console.log('owner:',owner.address, formatEther(await owner.getBalance()));
+
+  console.log('staker :',goatstaker.address, formatEther(await goatstaker.provider.getBalance(goatstaker.address)));
+
+  console.log('distributor :',distributor, formatEther(await goatstaker.provider.getBalance(distributor)));
+
+  tx = await goatstaker.depositReward( {value:parseEther('0.1')})
+  await tx.wait()
+
+  console.log('deployer:',deployer.address, formatEther(await deployer.getBalance()));
+
+  console.log('owner:',owner.address, formatEther(await owner.getBalance()));
+
+  console.log('staker :',goatstaker.address, formatEther(await goatstaker.provider.getBalance(goatstaker.address)));
+
+  console.log('distributor :',distributor, formatEther(await goatstaker.provider.getBalance(distributor)));
+
+
+  // console.log('ownermintedNfts:',ownermintedNfts)
+  tx = await goatstaker.connect(owner).batchStake([ownermintedNfts[8],ownermintedNfts[9],ownermintedNfts[13],ownermintedNfts[16]])
+  await tx.wait()
+
+  console.log('owner staked nft counnt:',(await goatstaker.userStakedNFTCount(owner.address)))
+
+  // console.log('owner staked nft :',(await goatstaker.userStakedNFT(owner.address)))
+
+  console.log('',ownermintedNfts[8])
+
+  console.log('owner check withdraw: isStaked:',(await goatstaker.isStaked(owner.address,ownermintedNfts[8])))
+
+  
+
+  tx = await goatstaker.connect(owner).unstake(ownermintedNfts[8])
   await tx.wait()
 
 
   console.log('deployer:',deployer.address, formatEther(await deployer.getBalance()));
 
-  tx = await goatstaker.depositReward( {value:parseEther('0.2')})
-  await tx.wait()
+  console.log('owner:',owner.address, formatEther(await owner.getBalance()));
 
-  console.log('deployer:',deployer.address, formatEther(await deployer.getBalance()));
+  console.log('staker :',goatstaker.address, formatEther(await goatstaker.provider.getBalance(goatstaker.address)));
+
+  console.log('distributor :',distributor, formatEther(await goatstaker.provider.getBalance(distributor)));
 
 
 
