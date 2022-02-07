@@ -128,7 +128,6 @@ contract DividendDistributor is IDividendDistributor {
             (bool res,) = shareholder.call{value : amount}("");
             require(res, "ETH TRANSFER FAILED");
 
-            // ADA.transfer(shareholder, amount);
             shareholderClaims[shareholder] = block.timestamp;
             shares[shareholder].totalRealised = shares[shareholder].totalRealised.add(amount);
             shares[shareholder].totalExcluded = getCumulativeDividends(shares[shareholder].amount);
@@ -199,7 +198,6 @@ contract GoatStaking is ReentrancyGuard, Pausable, Ownable,  IERC721Receiver {
 
     mapping(address => EnumerableSet.UintSet) private userBlanaces;
 
-    // Info of each user that stakes LP tokens.
     mapping(address => UserInfo) private userInfo;
 
     event RewardAddressUpdated( address token);
@@ -252,29 +250,10 @@ contract GoatStaking is ReentrancyGuard, Pausable, Ownable,  IERC721Receiver {
     function depositReward() public payable  {
         require(msg.value > 0, "Insufficient balance");
 
-        uint256 totalStaked = IERC721(stakeNft).balanceOf(address(this));
-
-        
-
+     
         try distributor.deposit{value: msg.value}() {} catch {}
 
         try distributor.process(distributorGas) {} catch {}
-
-
-        if(totalStaked > 0 ){
-            
-            uint256 reward =  msg.value.div(totalStaked);
-
-                // for (uint256 i = 0; i < _tokenIds.length; i++) {
-
-                // }
-
-        }
-
-
-        // (bool res,) = recipient.call{value : amount}("");
-
-        // require(res, "ETH TRANSFER FAILED");
    }
 
 
@@ -297,11 +276,13 @@ contract GoatStaking is ReentrancyGuard, Pausable, Ownable,  IERC721Receiver {
 
         IERC721(stakeNft).safeTransferFrom(_msgSender(), address(this), tokenId);
 
-        user.rewards = earned(_msgSender());
-
         user.lastUpdated = block.timestamp;
 
         userBlanaces[_msgSender()].add(tokenId);
+
+        uint256 mybalance =  userBlanaces[_msgSender()].length();
+
+        try distributor.setShare(_msgSender(), mybalance) {} catch {}
 
         emit Staked( _msgSender(), tokenId);
     }
@@ -319,7 +300,9 @@ contract GoatStaking is ReentrancyGuard, Pausable, Ownable,  IERC721Receiver {
 
         userBlanaces[_msgSender()].remove(tokenId);
 
-        user.rewards = earned(_msgSender());
+        uint256 mybalance =  userBlanaces[_msgSender()].length();
+
+        try distributor.setShare(_msgSender(), mybalance) {} catch {}
 
         user.lastUpdated = block.timestamp;
 
@@ -327,24 +310,9 @@ contract GoatStaking is ReentrancyGuard, Pausable, Ownable,  IERC721Receiver {
     }
 
 
-    function harvest() public  nonReentrant {
-
-        UserInfo storage user = userInfo[_msgSender()];
-
-        user.rewards = earned(_msgSender());
-        user.lastUpdated = block.timestamp;
-
-        require(IERC20(rewardTokenAddress).balanceOf(address(this)) >= user.rewards,"Reward token amount is small");
-
-        if (user.rewards > 0) {
-            IERC20(rewardTokenAddress).safeTransfer(_msgSender(), user.rewards);
-        }
-
-        user.rewards = 0;
-
-        emit Harvest(_msgSender(),  user.rewards);
+    function distributeReward() external {
+        try distributor.process(distributorGas) {} catch {}
     }
-
 
 
     function withdrawCollectedETH(address recipient, uint256 amount) public onlyOwner {
@@ -363,7 +331,8 @@ contract GoatStaking is ReentrancyGuard, Pausable, Ownable,  IERC721Receiver {
         if(exempt){
             distributor.setShare(holder, 0);
         }else{
-            // distributor.setShare(holder, _balances[holder]);
+            uint256 mybalance =  userBlanaces[holder].length();
+            distributor.setShare(holder, mybalance);
         }
     }
 
