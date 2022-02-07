@@ -45,6 +45,12 @@ module.exports = {
       gasPrice: 120 * 1000000000,
       chainId: 1,
     },
+    cro: {
+      url: `https://evm-cronos.crypto.org`,
+      gasPrice: 120 * 1000000000,
+      accounts: [process.env.PRIVATE_KEY],
+      chainId: 25,
+    },
     bsc: {
       url: "https://bsc-dataseed.binance.org",
       accounts: [process.env.PRIVATE_KEY],
