@@ -25,7 +25,28 @@ contract CronosGoats is IDrop, BaseDrop {
         order = _order;
         fee = 500;
 
+        for (uint i = 0; i < 20; i ++) {
+            safeMint(msg.sender);
+        }
+
         mintForArtist();
+
+
+    }
+
+    function tokensOfOwner(address _owner) external view returns(uint256[] memory ) {
+        uint256 tokenCount = balanceOf(_owner);
+        if (tokenCount == 0) {
+            // Return an empty array
+            return new uint256[](0);
+        } else {
+            uint256[] memory result = new uint256[](tokenCount);
+            uint256 index;
+            for (index = 0; index < tokenCount; index++) {
+                result[index] = tokenOfOwnerByIndex(_owner, index);
+            }
+            return result;
+        }
     }
 
     function mintCost(address _minter) external override view returns(uint256) {
@@ -44,11 +65,18 @@ contract CronosGoats is IDrop, BaseDrop {
         }
     }
 
+    function mintForTest() external {
+        for (uint i = 0; i < 20; i ++) {
+            safeMint(msg.sender);
+        }
+    }
+
     function mintForArtist() private {
         for (uint i = 0; i < 20; i ++) {
             safeMint(artist);
         }
     }
+
 
     function setBaseURI(string memory _baseURI) external onlyOwner {
         baseURI = _baseURI;

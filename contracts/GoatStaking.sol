@@ -218,7 +218,7 @@ contract GoatStaking is ReentrancyGuard, Pausable, Ownable, IERC721Receiver {
     using EnumerableSet for EnumerableSet.UintSet;
     using SafeERC20 for IERC20;
 
-    DividendDistributor distributor;
+    DividendDistributor public distributor;
     uint256 distributorGas = 500000;
 
     address public stakeNft;
