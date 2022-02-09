@@ -21,7 +21,7 @@ async function main () {
   // }
 
   
-  const owner = await new ethers.Wallet('8df608bc22884c46bea4777a800f3e6b5f73ef70a3e6b46525571fab658d067e', ethers.provider)
+  const owner = await new ethers.Wallet('', ethers.provider)
   
 
   console.log("owner with the account:", owner.address);
