@@ -14,19 +14,19 @@ async function main () {
   const upgrades = hre.upgrades;
 
   
-  const accounts = await hre.ethers.getSigners();
+  // const accounts = await hre.ethers.getSigners();
 
-  for (const account of accounts) {
-    console.log(account.address);
-  }
+  // for (const account of accounts) {
+  //   console.log(account.address);
+  // }
 
   
   const [owner] = await ethers.getSigners();
 
   console.log("Deploying contracts with the account:", owner.address);
 
-  console.log("Account balance:", (await owner.getBalance()).toString());
-
+  // console.log("Account balance:", (await owner.getBalance()).toString());
+  console.log('deployer creator:')
 
 
   const deployer = new ethers.Wallet(process.env.PRIVATE_KEY, ethers.provider)

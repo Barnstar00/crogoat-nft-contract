@@ -51,9 +51,9 @@ async function main () {
 
   console.log("goatstaker Contract deployed to ", goatstaker.address)
 
-  const distributor = await goatstaker.distributor()
+  // const distributor = await goatstaker.distributor()
 
-  console.log("goatstaker distributer  deployed to ", distributor)
+  // console.log("goatstaker distributer  deployed to ", distributor)
 
   console.log('deployer nft balance count of the deployer:',(await crogoats.balanceOf(deployer.address)))
 

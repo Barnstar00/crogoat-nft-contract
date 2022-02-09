@@ -12,25 +12,29 @@ import "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
 import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
-interface IDividendDistributor {
-    function setDistributionCriteria(
-        uint256 _minPeriod,
-        uint256 _minDistribution
-    ) external;
 
-    function setShare(address shareholder, uint256 amount) external;
 
-    function deposit() external payable;
-
-    function process(uint256 gas) external;
-
-    function claimDividend() external;
-}
-
-contract DividendDistributor is IDividendDistributor {
+contract GoatStaking is ReentrancyGuard, Pausable, Ownable, IERC721Receiver {
     using SafeMath for uint256;
+    using EnumerableSet for EnumerableSet.UintSet;
+    using SafeERC20 for IERC20;
 
-    address _staker;
+    uint256 distributorGas = 500000;
+
+    address public stakeNft;
+    uint256 public maxStakeLimit = 20;
+
+    receive() external payable {}
+
+    mapping(address => EnumerableSet.UintSet) private userBlanaces;
+
+    event Staked(address indexed account, uint256 tokenId);
+    event BatchStaked(address indexed account, uint256[] tokenIds);
+
+    event Withdrawn(address indexed account, uint256 tokenId);
+
+    event BatchWithdrawn(address indexed account, uint256[] tokenIds);
+
 
     struct Share {
         uint256 amount;
@@ -56,27 +60,17 @@ contract DividendDistributor is IDividendDistributor {
 
     uint256 currentIndex;
 
-    modifier onlyStaker() {
-        require(msg.sender == _staker);
-        _;
-    }
-
-    constructor() {
-        _staker = msg.sender;
-    }
 
     function setDistributionCriteria(
         uint256 _minPeriod,
         uint256 _minDistribution
-    ) external override onlyStaker {
+    ) external  onlyOwner {
         minPeriod = _minPeriod;
         minDistribution = _minDistribution;
     }
 
     function setShare(address shareholder, uint256 amount)
-        external
-        override
-        onlyStaker
+        internal
     {
         if (shares[shareholder].amount > 0) {
             distributeDividend(shareholder);
@@ -95,7 +89,8 @@ contract DividendDistributor is IDividendDistributor {
         );
     }
 
-    function deposit() external payable override onlyStaker {
+    function deposit() public payable  {
+        require(msg.value > 0, "Insufficient Amount");
         uint256 amount = msg.value;
 
         totalDividends = totalDividends.add(amount);
@@ -105,7 +100,7 @@ contract DividendDistributor is IDividendDistributor {
         );
     }
 
-    function process(uint256 gas) external override onlyStaker {
+    function process() public {
         uint256 shareholderCount = shareholders.length;
 
         if (shareholderCount == 0) {
@@ -117,7 +112,7 @@ contract DividendDistributor is IDividendDistributor {
 
         uint256 iterations = 0;
 
-        while (gasUsed < gas && iterations < shareholderCount) {
+        while (gasUsed < distributorGas && iterations < shareholderCount) {
             if (currentIndex >= shareholderCount) {
                 currentIndex = 0;
             }
@@ -164,7 +159,7 @@ contract DividendDistributor is IDividendDistributor {
         }
     }
 
-    function claimDividend() external override {
+    function claimDividend() external {
         distributeDividend(msg.sender);
     }
 
@@ -212,33 +207,10 @@ contract DividendDistributor is IDividendDistributor {
         ] = shareholderIndexes[shareholder];
         shareholders.pop();
     }
-}
 
-contract GoatStaking is ReentrancyGuard, Pausable, Ownable, IERC721Receiver {
-    using SafeMath for uint256;
-    using EnumerableSet for EnumerableSet.UintSet;
-    using SafeERC20 for IERC20;
-
-    DividendDistributor public distributor;
-    uint256 distributorGas = 500000;
-
-    address public stakeNft;
-    uint256 public maxStakeLimit = 20;
-
-    receive() external payable {}
-
-    mapping(address => EnumerableSet.UintSet) private userBlanaces;
-
-    event Staked(address indexed account, uint256 tokenId);
-    event BatchStaked(address indexed account, uint256[] tokenIds);
-
-    event Withdrawn(address indexed account, uint256 tokenId);
-
-    event BatchWithdrawn(address indexed account, uint256[] tokenIds);
 
     constructor(address _stakeNft) {
         stakeNft = _stakeNft;
-        distributor = new DividendDistributor();
     }
 
     function userWalletNFT(address _owner) external view returns(uint256[] memory ) {
@@ -296,12 +268,18 @@ contract GoatStaking is ReentrancyGuard, Pausable, Ownable, IERC721Receiver {
         return userBlanaces[account].contains(tokenId);
     }
 
-    function depositReward() public payable {
+    function depositReward() external payable {
         require(msg.value > 0, "Insufficient balance");
 
-        try distributor.deposit{value: msg.value}() {} catch {}
+        uint256 amount = msg.value;
 
-        try distributor.process(distributorGas) {} catch {}
+        totalDividends = totalDividends.add(amount);
+
+        dividendsPerShare = dividendsPerShare.add(
+            dividendsPerShareAccuracyFactor.mul(amount).div(totalShares)
+        );
+
+        process();
     }
 
     function stake(uint256 tokenId) public nonReentrant whenNotPaused {
@@ -320,7 +298,7 @@ contract GoatStaking is ReentrancyGuard, Pausable, Ownable, IERC721Receiver {
 
         uint256 mybalance = userBlanaces[_msgSender()].length();
 
-        try distributor.setShare(_msgSender(), mybalance) {} catch {}
+        setShare(_msgSender(), mybalance) ;
 
         emit Staked(_msgSender(), tokenId);
     }
@@ -349,7 +327,7 @@ contract GoatStaking is ReentrancyGuard, Pausable, Ownable, IERC721Receiver {
 
         uint256 mybalance = userBlanaces[_msgSender()].length();
 
-        try distributor.setShare(_msgSender(), mybalance) {} catch {}
+        setShare(_msgSender(), mybalance);
 
         emit BatchStaked(_msgSender(), _tokenIds);
     }
@@ -369,7 +347,7 @@ contract GoatStaking is ReentrancyGuard, Pausable, Ownable, IERC721Receiver {
 
         uint256 mybalance = userBlanaces[_msgSender()].length();
 
-        try distributor.setShare(_msgSender(), mybalance) {} catch {}
+        setShare(_msgSender(), mybalance);
 
         emit Withdrawn(_msgSender(), tokenId);
     }
@@ -390,13 +368,9 @@ contract GoatStaking is ReentrancyGuard, Pausable, Ownable, IERC721Receiver {
 
         uint256 mybalance = userBlanaces[_msgSender()].length();
 
-        try distributor.setShare(_msgSender(), mybalance) {} catch {}
+        setShare(_msgSender(), mybalance);
 
         emit BatchWithdrawn(_msgSender(), _tokenIds);
-    }
-
-    function distributeReward() external {
-        try distributor.process(distributorGas) {} catch {}
     }
 
     function withdrawCollectedETH(address recipient, uint256 amount)
@@ -423,19 +397,13 @@ contract GoatStaking is ReentrancyGuard, Pausable, Ownable, IERC721Receiver {
     {
         require(holder != address(this));
         if (exempt) {
-            distributor.setShare(holder, 0);
+            setShare(holder, 0);
         } else {
             uint256 holderbalance = userBlanaces[holder].length();
-            distributor.setShare(holder, holderbalance);
+            setShare(holder, holderbalance);
         }
     }
 
-    function setDistributionCriteria(
-        uint256 _minPeriod,
-        uint256 _minDistribution
-    ) external onlyOwner {
-        distributor.setDistributionCriteria(_minPeriod, _minDistribution);
-    }
 
     function setDistributorSettings(uint256 gas) external onlyOwner {
         require(gas <= 1000000);
@@ -444,9 +412,5 @@ contract GoatStaking is ReentrancyGuard, Pausable, Ownable, IERC721Receiver {
 
     function setStakeLimit(uint256 _limit) external onlyOwner {
         maxStakeLimit = _limit;
-    }
-
-    function claimDividend() external {
-        distributor.claimDividend();
     }
 }

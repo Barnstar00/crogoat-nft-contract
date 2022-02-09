@@ -32,8 +32,9 @@ module.exports = {
   networks: {
     hardhat: {
       forking: {
-        url: process.env.L1_NODE_URL,
+        url: 'https://evm-cronos.crypto.org',
       },
+      gasPrice: 120 * 100000000,
       initialBaseFeePerGas: 0, // workaround from https://github.com/sc-forks/solidity-coverage/issues/652#issuecomment-896330136 . Remove when that issue is closed.
     },
     rinkeby: {
